@@ -349,6 +349,19 @@
                                     <label for="apiKeyInput" class="block text-sm font-semibold text-gray-700 mb-1">Masukkan API Key Anda</label>
                                     <input type="password" id="apiKeyInput" class="w-full p-2.5 text-sm text-gray-900 bg-gray-50 rounded-xl border border-gray-300 focus:ring-gblue focus:border-gblue transition-colors" placeholder="AIzaSy...">
                                 </div>
+                                <div class="mt-4">
+                                    <label for="modelSelect" class="block text-sm font-semibold text-gray-700 mb-1">Versi Model Gemini</label>
+                                    <div class="relative">
+                                        <select id="modelSelect" class="w-full pl-3 pr-10 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-gblue focus:border-gblue block appearance-none transition-colors">
+                                            <option value="gemini-2.5-flash-preview-09-2025">Gemini 2.5 Flash Preview (Untuk Web/Canvas Ini)</option>
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Stabil Umum)</option>
+                                        </select>
+                                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Gunakan versi <b>Preview</b> jika Anda mencoba kode ini langsung di dalam lingkungan website ini (Canvas).</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -395,11 +408,14 @@
         const saveApiBtn = document.getElementById('saveApiBtn');
         const apiModalBackdrop = document.getElementById('apiModalBackdrop');
         const apiKeyInput = document.getElementById('apiKeyInput');
+        const modelSelect = document.getElementById('modelSelect');
 
         // Modal Logic
         function openModal() {
             const savedKey = localStorage.getItem('gemini_api_key');
+            const savedModel = localStorage.getItem('gemini_model');
             if(savedKey) apiKeyInput.value = savedKey;
+            if(savedModel) modelSelect.value = savedModel;
             apiModal.classList.remove('hidden');
         }
 
@@ -413,11 +429,13 @@
         
         saveApiBtn.addEventListener('click', () => {
             const val = apiKeyInput.value.trim();
+            const modelVal = modelSelect.value;
             if(val) {
                 localStorage.setItem('gemini_api_key', val);
             } else {
                 localStorage.removeItem('gemini_api_key');
             }
+            localStorage.setItem('gemini_model', modelVal);
             closeModal();
             
             // Hapus pesan error jika sebelumnya terhalang karena API Key kosong
@@ -446,8 +464,8 @@
         const delay = ms => new Promise(res => setTimeout(res, ms));
 
         // API Call Function with Exponential Backoff
-        async function fetchWithBackoff(payload, currentApiKey, maxRetries = 5) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`;
+        async function fetchWithBackoff(payload, currentApiKey, model, maxRetries = 5) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentApiKey}`;
             const delays = [1000, 2000, 4000, 8000, 16000];
 
             for (let i = 0; i < maxRetries; i++) {
@@ -486,8 +504,11 @@
 
             // Cek Ketersediaan API Key sebelum melanjutkan
             const currentApiKey = getActiveApiKey();
-            if (!currentApiKey) {
-                errorMsg.innerHTML = 'API Key belum diatur. Silakan masukkan API Key Anda melalui tombol <i class="fa-solid fa-key"></i> <b>Pengaturan API</b> di kanan atas.';
+            const currentModel = localStorage.getItem('gemini_model') || 'gemini-2.5-flash-preview-09-2025';
+
+            // Validasi API Key HANYA JIKA model yang dipilih bukan versi preview bawaan web
+            if (!currentApiKey && currentModel !== 'gemini-2.5-flash-preview-09-2025') {
+                errorMsg.innerHTML = 'API Key belum diatur untuk versi Stabil. Silakan masukkan API Key Anda melalui tombol <i class="fa-solid fa-key"></i> <b>Pengaturan API</b> di kanan atas, atau gunakan versi <b>Preview</b>.';
                 errorState.classList.remove('hidden');
                 emptyState.classList.add('hidden');
                 resultContent.classList.add('hidden');
@@ -578,7 +599,7 @@
             };
 
             try {
-                const response = await fetchWithBackoff(payload, currentApiKey);
+                const response = await fetchWithBackoff(payload, currentApiKey, currentModel);
                 const resultText = response.candidates?.[0]?.content?.parts?.[0]?.text;
                 
                 if(!resultText) {
