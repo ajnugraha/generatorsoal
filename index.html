@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Generator Soal & Kisi-Kisi</title>
+    <title>Generator Soal & Kisi-Kisi</title>
     
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -142,6 +142,12 @@
                         <textarea id="tujuan" rows="2" class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 rounded-xl border border-gray-300 focus:ring-gblue focus:border-gblue transition-colors" placeholder="Cth: Siswa dapat menganalisis..." required></textarea>
                     </div>
 
+                    <!-- Indikator Pembelajaran -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Indikator Pembelajaran <span class="text-xs text-gray-400 font-normal ml-1">(Opsional)</span></label>
+                        <textarea id="indikator" rows="2" class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 rounded-xl border border-gray-300 focus:ring-gblue focus:border-gblue transition-colors" placeholder="Kosongkan jika ingin AI yang menentukan secara otomatis..."></textarea>
+                    </div>
+
                     <!-- Materi Pokok -->
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Materi Pokok</label>
@@ -254,13 +260,16 @@
                 
                 <!-- Action Buttons (Print/Copy) -->
                 <div class="flex justify-end gap-3 no-print">
+                    <button id="copyBtn" onclick="copyContent()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-copy"></i> Salin
+                    </button>
                     <button onclick="window.print()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
                         <i class="fa-solid fa-print"></i> Cetak
                     </button>
                 </div>
 
                 <!-- Metadata Card -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div id="printMetadata" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                     <h2 class="text-xl font-bold border-b pb-4 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-layer-group text-gblue"></i> Informasi Paket Soal
                     </h2>
@@ -271,11 +280,12 @@
                         <div><span class="text-gray-500 block text-xs uppercase tracking-wider font-semibold">Jenis & Jumlah</span> <span id="resJenisJumlah" class="font-medium text-gray-900"></span></div>
                         <div><span class="text-gray-500 block text-xs uppercase tracking-wider font-semibold">Tipe Soal</span> <span id="resHots" class="font-medium text-gray-900"></span></div>
                         <div class="md:col-span-2"><span class="text-gray-500 block text-xs uppercase tracking-wider font-semibold">Tujuan Pembelajaran / KD</span> <span id="resTujuan" class="font-medium text-gray-900"></span></div>
+                        <div class="md:col-span-2"><span class="text-gray-500 block text-xs uppercase tracking-wider font-semibold">Indikator Pembelajaran</span> <span id="resIndikator" class="font-medium text-gray-900"></span></div>
                     </div>
                 </div>
 
                 <!-- Kisi-Kisi Table -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div id="printKisiKisi" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="p-6 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
                         <i class="fa-solid fa-table-list text-gyellow"></i>
                         <h2 class="text-lg font-bold text-gray-800">Kisi-Kisi Soal</h2>
@@ -299,7 +309,7 @@
 
                 <!-- Soal List -->
                 <div class="page-break"></div>
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div id="printSoal" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                     <div class="flex items-center gap-2 mb-6 border-b pb-4">
                         <i class="fa-solid fa-file-pen text-gred"></i>
                         <h2 class="text-lg font-bold text-gray-800">Daftar Soal & Kunci Jawaban</h2>
@@ -496,6 +506,7 @@
             // Get input values
             const kelas = document.getElementById('kelas').value;
             const tujuan = document.getElementById('tujuan').value;
+            const indikatorInput = document.getElementById('indikator').value.trim();
             const materi = document.getElementById('materi').value;
             const level = document.getElementById('level').value;
             const jenis = document.getElementById('jenis').value;
@@ -515,9 +526,12 @@
                 return;
             }
 
+            const indikatorDisplay = indikatorInput ? indikatorInput : "Dihasilkan otomatis oleh AI menyesuaikan materi dan KD";
+
             // Update UI Information Cards
             document.getElementById('resKelas').textContent = kelas;
             document.getElementById('resTujuan').textContent = tujuan;
+            document.getElementById('resIndikator').textContent = indikatorDisplay;
             document.getElementById('resMateri').textContent = materi;
             document.getElementById('resLevel').textContent = level;
             document.getElementById('resJenisJumlah').textContent = `${jenis} (${jumlah} Butir)`;
@@ -532,9 +546,19 @@
                 ? "5. SOAL HOTS: Buatlah soal-soal bertipe HOTS (Higher Order Thinking Skills). Soal harus menuntut siswa untuk menganalisis, mengevaluasi, atau mencipta, bukan sekadar menghafal. Gunakan stimulus yang menarik dan menantang." 
                 : "5. SOAL REGULER: Buatlah soal standar yang sesuai dengan level kognitif yang dipilih.";
 
+            let indikatorInstruction = "";
+            let indikatorTextForPrompt = "";
+
+            if (indikatorInput) {
+                indikatorTextForPrompt = `Indikator Pembelajaran: ${indikatorInput}\n`;
+                indikatorInstruction = `6. INDIKATOR SOAL: Pada pembuatan kisi-kisi, rumusan "Indikator Soal" WAJIB merujuk dan disesuaikan dengan "Indikator Pembelajaran" yang telah saya sebutkan di atas. Anda TETAP WAJIB merumuskannya menggunakan pola berikut: "Disajikan [tuliskan stimulus/kondisinya], siswa dapat [tuliskan perilaku/kompetensi yang diukur sesuai indikator pembelajaran] dengan [tuliskan kriteria kebenaran]". Contoh: "Disajikan gambar hewan burung pipit, siswa dapat menentukan jenis makanan yang sesuai dengan bentuk paruh burung pipit dengan benar".`;
+            } else {
+                indikatorInstruction = `6. INDIKATOR SOAL: Karena saya tidak menyertakan Indikator Pembelajaran spesifik, silakan Anda merumuskan sendiri indikator yang paling tepat dan relevan berdasarkan Tujuan Pembelajaran dan Materi Pokok. Rumusan "Indikator Soal" di tabel kisi-kisi WAJIB menggunakan pola berikut: "Disajikan [tuliskan stimulus/kondisinya], siswa dapat [tuliskan perilaku/kompetensi yang diukur] dengan [tuliskan kriteria kebenaran]". Contoh: "Disajikan gambar hewan burung pipit, siswa dapat menentukan jenis makanan yang sesuai dengan bentuk paruh burung pipit dengan benar".`;
+            }
+
             const userPrompt = `Buatkan saya ${jumlah} butir soal dengan jenis ${jenis} untuk ${kelas} (Sekolah Dasar).
             Tujuan Pembelajaran / Kompetensi Dasar: ${tujuan}
-            Materi Pokok: ${materi}
+            ${indikatorTextForPrompt}Materi Pokok: ${materi}
             Level Kognitif Soal: ${level}
             
             ATURAN PENULISAN SOAL & KISI-KISI:
@@ -543,7 +567,7 @@
             3. Jika jenis soal "Esai", buatlah soal pertanyaan lengkap yang menuntut penjelasan/uraian. SANGAT PENTING: 1 butir soal HANYA boleh berisi 1 pertanyaan atau 1 instruksi tunggal (JANGAN menggabungkan beberapa instruksi dalam satu soal seperti "Sebutkan... lalu jelaskan..."). Hal ini agar siswa SD tidak bingung dan guru mudah memberikan skor penilaian.
             4. BAHASA & KOGNITIF ANAK: Sesuaikan gaya bahasa, panjang kalimat, konteks cerita, dan kompleksitas logika secara ketat dengan pola pikir dan tingkat perkembangan kognitif anak usia Sekolah Dasar (SD) sesuai kelas yang dipilih (${kelas}). Gunakan kosakata yang membumi, konkret, dan mudah dipahami oleh anak seusianya.
             ${hotsInstruction}
-            6. INDIKATOR SOAL: Pada pembuatan kisi-kisi, bagian indikator soal WAJIB menggunakan pola rumusan berikut: "Disajikan [tuliskan stimulus/kondisinya], siswa dapat [tuliskan perilaku/kompetensi yang diukur] dengan [tuliskan kriteria kebenaran]". Contoh: "Disajikan gambar hewan burung pipit, siswa dapat menentukan jenis makanan yang sesuai dengan bentuk paruh burung pipit dengan benar".
+            ${indikatorInstruction}
             7. LEVEL KOGNITIF (L1/L2/L3): Pada tabel kisi-kisi (kolom level kognitif), Anda HANYA boleh menuliskan "L1" (jika soal mudah/C1-C2), "L2" (jika soal sedang/C3), atau "L3" (jika soal sulit/C4-C6). Jangan menuliskan C1/C2/C3/C4/C5/C6.
             
             Pastikan membuatkan kisi-kisinya dan membuat soal yang relevan, akurat, sesuai dengan level kognitif yang diminta. Sertakan kunci jawaban beserta penjelasannya.`;
@@ -696,6 +720,52 @@
                     '"': '&quot;'
                 }[tag] || tag)
             ).replace(/\n/g, '<br>'); // preserve line breaks
+        }
+
+        // Fungsi untuk menyalin konten ke Clipboard
+        function copyContent() {
+            const btn = document.getElementById('copyBtn');
+            const originalHTML = btn.innerHTML;
+            
+            // Ambil bagian yang ingin disalin menggunakan ID yang baru ditambahkan
+            const meta = document.getElementById('printMetadata').outerHTML;
+            const kisi = document.getElementById('printKisiKisi').outerHTML;
+            const soal = document.getElementById('printSoal').outerHTML;
+            
+            // Buat elemen penampung sementara
+            const tempDiv = document.createElement('div');
+            // Gabungkan konten dengan jarak (line breaks) agar rapi di MS Word
+            tempDiv.innerHTML = meta + '<br><br>' + kisi + '<br><br>' + soal;
+            
+            // Sembunyikan elemen sementara di luar layar
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.top = '0';
+            document.body.appendChild(tempDiv);
+            
+            // Pilih teks di dalam elemen sementara
+            const range = document.createRange();
+            range.selectNode(tempDiv);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            
+            try {
+                // Eksekusi perintah salin bawaan browser
+                document.execCommand('copy');
+                
+                // Ubah tampilan tombol sesaat sebagai indikator berhasil
+                btn.innerHTML = '<i class="fa-solid fa-check text-ggreen"></i> <span class="text-ggreen">Tersalin!</span>';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                }, 2000);
+            } catch (err) {
+                console.error('Gagal menyalin:', err);
+                alert('Gagal menyalin teks ke clipboard.');
+            }
+            
+            // Bersihkan memory dan hilangkan seleksi/elemen sementara
+            window.getSelection().removeAllRanges();
+            document.body.removeChild(tempDiv);
         }
     </script>
 </body>
