@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generator Soal & Kisi-Kisi</title>
+    <title>AI Generator Soal & Kisi-Kisi</title>
     
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -255,6 +255,21 @@
                 </div>
             </div>
 
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center text-center h-full min-h-[400px]">
+                <div class="relative w-24 h-24 mb-6">
+                    <!-- Outer spinning ring -->
+                    <div class="absolute inset-0 rounded-full border-4 border-gray-100"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-gblue border-t-transparent animate-spin"></div>
+                    <!-- Inner icon -->
+                    <div class="absolute inset-0 flex items-center justify-center text-gblue">
+                        <i class="fa-solid fa-robot text-3xl animate-pulse"></i>
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">AI Sedang Bekerja...</h3>
+                <p class="text-gray-500 max-w-sm">Mohon tunggu beberapa saat. AI sedang menganalisis materi dan menyusun soal beserta kisi-kisinya secara otomatis untuk Anda.</p>
+            </div>
+
             <!-- Generated Content -->
             <div id="resultContent" class="hidden space-y-8">
                 
@@ -407,6 +422,7 @@
         const errorState = document.getElementById('errorState');
         const errorMsg = document.getElementById('errorMsg');
         const resultContent = document.getElementById('resultContent');
+        const loadingState = document.getElementById('loadingState');
         
         const kisiKisiBody = document.getElementById('kisiKisiBody');
         const soalContainer = document.getElementById('soalContainer');
@@ -541,6 +557,7 @@
             emptyState.classList.add('hidden');
             resultContent.classList.add('hidden');
             errorState.classList.add('hidden');
+            loadingState.classList.remove('hidden');
 
             const hotsInstruction = isHots 
                 ? "5. SOAL HOTS: Buatlah soal-soal bertipe HOTS (Higher Order Thinking Skills). Soal harus menuntut siswa untuk menganalisis, mengevaluasi, atau mencipta, bukan sekadar menghafal. Gunakan stimulus yang menarik dan menantang." 
@@ -635,12 +652,14 @@
                 
                 renderResults(generatedData);
                 
+                loadingState.classList.add('hidden');
                 resultContent.classList.remove('hidden');
             } catch (error) {
                 console.error("AI Error:", error);
                 errorMsg.textContent = error.message || "Gagal menghasilkan soal. Periksa koneksi Anda dan coba lagi.";
+                loadingState.classList.add('hidden');
                 errorState.classList.remove('hidden');
-                emptyState.classList.remove('hidden'); // Fallback to empty space visually
+                // Removed emptyState fallback as we now have specific error handling visibility
             } finally {
                 setLoading(false);
             }
